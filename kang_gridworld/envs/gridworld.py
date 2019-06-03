@@ -128,14 +128,13 @@ class Gridworld:
 
         xEnd = self.x_agent + xy_tuple[0]
         yEnd = self.y_agent + xy_tuple[1]
+        self.epoch += 1
         if debugging:
             print(f"Target end position: ({xEnd}, {yEnd})")
         if (self.move_possible(xy_tuple)):
             self.x_agent = xEnd
             self.y_agent = yEnd
-            self.epoch += 1
             output = self.representation[self.y_agent, self.x_agent]
-
             # clear item
             self.representation[self.y_agent, self.x_agent] = 0
 
@@ -278,7 +277,8 @@ class Gridworld:
         """
 
         prox_map = np.array([row[[0, 2, 3]]
-                             for row in self.item_list if row[1]], dtype=np.float, copy=True)
+                             for row in self.item_list if row[1]],
+                            dtype=np.float, copy=True)
         # np.reshape(prox_map, (-1, 3))
         prox_map[:, 1] -= (np.clip(self.x_agent +
                                    xy_tuple[0], 0, self.x_size - 1))
@@ -297,6 +297,16 @@ class Gridworld:
         return prox_map
 
     def calculate_grid_map(self, xy_tuple):
+        """Creates two matrices that show the distances between the agent and
+        the objects in the x / y dimensions
+
+        Arguments:
+            xy_tuple {tuple} -- (deltaX, deltaY)
+
+        Returns:
+            matrix, matrix -- two n x n matrices where n = # of objects, the
+            first column is the agent
+        """
         # we are going to set the first col to be the agent
         out_map_x = np.zeros(
             (len(self.item_list) + 1, len(self.item_list) + 1))
@@ -331,14 +341,32 @@ class Gridworld:
 
         return out_map_x, out_map_y
 
+    def get_contact_map(self, xy_tuple):
+        """Calculates the presence of contacts between the agent and other objects
+
+        Arguments:
+            xy_tuple {tuple of int} -- (deltaX, deltaY)
+
+        Returns:
+            list -- whether the agent is contacting with an object (1) or not (0)
+        """
+        deltaX, deltaY = self.calculate_grid_map(xy_tuple)
+        contact_map = np.zeros(len(self.item_list) + 1)
+
+        for item in range(1, len(self.item_list) + 1):
+            if abs(deltaX[item][0]) + abs(deltaY[item][0]) <= 1:
+                contact_map[item] = 1
+
+        return contact_map
+
     def load_world(self, directory):
         """Load world from directory
 
         Arguments:
-            directory {string} -- string of directory, including the name of the pickle file
+            directory {string} -- string of directory,
+            including the name of the pickle file
         """
 
         parameters = p.load(open(directory, 'rb'))
         self.item_list = parameters[0]
         self.collision_penalty = parameters[1]
-

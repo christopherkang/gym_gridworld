@@ -1,69 +1,125 @@
-from .gridworld import Gridworld
 import numpy as np
-
+from .gridworld import Gridworld
 import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
+import cv2
+import sys
+for p in sys.path:
+    print(p)
 
 
-class Kang_Grid(gym.Env):
+# from gym import error, spaces, utils
+# from gym.utils import seeding
+
+
+class KangGrid(gym.Env):
     metadata = {'render.modes': ['human']}
     _ACTION_BANK = ["UP", "LEFT", "DOWN", "RIGHT"]
     _ACTION_DEF = [[0, -1],
-                [-1, 0],
-                [0, 1],
-                [1, 0]]
+                   [-1, 0],
+                   [0, 1],
+                   [1, 0]]
     _ACTION_INFO = [_ACTION_BANK, _ACTION_DEF]
 
-    def _randomly_create_objects(number_of_objects, xyDimension,
-                            reward=None, reward_map=None):
+    def _randomly_create_objects(self, number_of_objects, xyDimension,
+                                 reward=None, reward_map=None):
         """Creates random objects matching 'parameters' format
-        
+
         Arguments:
             number_of_objects {int} -- number of objects to be generated
             reward {int} -- reward of individual object
             xyDimension {tuple} -- dimension of world
-        
+
         Keyword Arguments:
-            reward_map {array of ints} -- list of rewards to use (default: {""})
-        
+            reward_map {array of int} -- list of rewards to use (default: {""})
+
         Returns:
             list -- list of objects
         """
         xSize = xyDimension[0]
         ySize = xyDimension[1]
 
-        coordinates = np.random.choice(xSize * ySize - 1, number_of_objects, replace=False)
+        coordinates = np.random.choice(
+            xSize * ySize - 1, number_of_objects, replace=False)
 
         output = []
 
         if reward_map:
             for i in range(number_of_objects):
-                toAdd = [reward_map[i], True, coordinates & xSize, coordinates // xSize]
+                toAdd = [reward_map[i], True, coordinates[i] %
+                         xSize, coordinates[i] // xSize]
                 output.append(toAdd)
         else:
-            for _ in range(number_of_objects):
-                toAdd = [reward, True, coordinates & xSize, coordinates // xSize]
+            for i in range(number_of_objects):
+                toAdd = [reward, True, coordinates[i] %
+                         xSize, coordinates[i] // xSize]
                 output.append(toAdd)
 
         return output
 
     def _create_env(self):
-        params = [self._randomly_create_objects(2, (5, 5), reward_map=[1, -1]), 0]
-        return Gridworld((5,5), _ACTION_INFO, params)
+        """Creates an environment and places agent at (0, 0)
 
+        Returns:
+            Gridworld -- 5x5 gridworld with a cherry and bomb placed randomly
+        """
+        params = [self._randomly_create_objects(
+            2, (5, 5), reward_map=[1, -1]), 0]
+        grid = Gridworld((5, 5), self._ACTION_INFO, params)
+        grid.place_agent(0, 0)
+        return grid
 
     def __init__(self):
-        """Create the env. Uses an internal variable 
+        """Create the env. Uses an internal variable to store the environment
         """
         self.env = self._create_env()
         self.env.place_agent(0, 0)
 
     def step(self, action):
-        self.env.move_agent(action)
+        """Given an action provided by an agent, return the reward
+
+        Arguments:
+            action {int} -- index of the action
+
+        Returns:
+            int -- reward to the agent
+        """
+
+        done = False
+
+        reward = self.env.move_agent(action)
+
+        if reward == 1 or self.env.get_epoch() > 50:
+            done = True
+
+        state = [self.env.calculate_grid_map(
+            (0, 0)), self.env.get_contact_map((0, 0))]
+
+        # often refers to multiple dimensions, but here it simply refers to
+        # the proximity between objects and the contacts
+
+        print(f"Agent took action {self._ACTION_BANK[action]}")
+
+        print(
+            f"Pos: {self.env.get_agent_coords()} | Reward : {reward} | Epoch : {self.env.get_epoch()}")
+
+        return state, reward, done, {}
 
     def reset(self):
+        """Resets environment and re-initializes
+        """
         self.env = self._create_env()
 
     def render(self, mode='human', close=False):
-        return super().render(mode=mode)
+        """Renders an image of the environment currently
+
+        Keyword Arguments:
+            mode {str} -- #FLAG ? unknown (default: {'human'})
+            close {bool} -- #FLAG ? unknown (default: {False})
+        """
+        # cv2.imshow('image', cv2.resize(self.env.getRepresentation(
+        #     showAgent=True, scaleEnvironment=True), (200, 200),
+        #     interpolation=cv2.INTER_NEAREST))
+        cv2.imshow('image', cv2.resize(self.env.representation, (200, 200),
+                                       interpolation=cv2.INTER_NEAREST))
+        cv2.waitKey(1)
+        cv2.destroyAllWindows()
