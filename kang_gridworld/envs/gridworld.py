@@ -3,6 +3,32 @@ import pickle as p
 
 
 class Gridworld:
+    def _get_agent_coords(self):
+        """Return agent coordinates (assumes agent has been placed).
+
+        Returns:
+            (int, int) -- coordinates of agent
+
+        """
+        return (self.x_agent, self.y_agent)
+
+    def _get_epoch(self):
+        """Return the epoch of the current trial
+
+        Returns:
+            int -- epoch of the world
+        """
+
+        return self.epoch
+
+    def _get_objects(self):
+        """Returns list of objects
+
+        Returns:
+            list -- see item_list object format
+        """
+        return self.item_list
+
     def __init__(self, worldSize, action_specs, parameters):
         """Create Gridworld.
 
@@ -68,15 +94,6 @@ class Gridworld:
         distance_matrix = [[row[0], row[1] - x_coord, row[2] - y_coord]
                            for row in self.item_list if row[1]]
         return distance_matrix
-
-    def get_agent_coords(self):
-        """Return agent coordinates (assumes agent has been placed).
-
-        Returns:
-            (int, int) -- coordinates of agent
-
-        """
-        return (self.x_agent, self.y_agent)
 
     def move_possible(self, xy_tuple):
         """Identify if a move is possible. Requires agent to be initialized
@@ -165,32 +182,24 @@ class Gridworld:
                 color_string[2:4], 16), int(color_string[4:], 16)])
 
         def replace_color(object_at_location):
-            # print(f"objaloc:{object_at_location}")
-            if object_at_location[0] == 1:
-                # input("no i'ave happened cherry")
+            if object_at_location == 1:
                 return int_array_color(cherry_color) / 255
-            elif object_at_location[0] == -1:
-                # input("I'VE HAPPENED????")
+            elif object_at_location == -1:
                 return int_array_color(bomb_color) / 255
             else:
                 return np.array([0, 0, 0])
 
-        copy = np.expand_dims(self.representation, axis=2)  # make a copy
-        output = np.concatenate(
-            (copy, np.zeros((copy.shape[0], copy.shape[1], 2))), axis=2)
-        # output = np.swapaxes(output, 0, 2)
-        for row in output:
-            # print(f"row:{row}")
-            for element in row:
-                element = replace_color(element)
-        # output = np.swapaxes(output, 0, 2)
-        # if (scaleEnvironment):
-        #     output /= max(output.max(), 1) * 2
+        rgb_img = np.zeros(
+            (self.representation.shape[0], self.representation.shape[1], 3))
+
+        for width in range(self.x_size):
+            for height in range(self.y_size):
+                rgb_img[height][width] = replace_color(
+                    self.representation[height][width])
+
         if (showAgent):
-            output[self.y_agent, self.x_agent] = [1, 1, 1]
-        # output[2, 2] = int_array_color(cherry_color)
-        # print(f"output: {output}")
-        return output
+            rgb_img[self.y_agent, self.x_agent] = [1, 1, 1]
+        return rgb_img
 
     def return_vision(self, x_dist, y_dist):
         """Return what an agent "would" be able to see
@@ -239,15 +248,6 @@ class Gridworld:
             return output
         else:
             return output
-
-    def get_epoch(self):
-        """Return the epoch of the current trial
-
-        Returns:
-            int -- epoch of the world
-        """
-
-        return self.epoch
 
     def update_proximity_map(self, xy_tuple, speculative=False):
         """Update proximity map
@@ -341,7 +341,7 @@ class Gridworld:
 
         return out_map_x, out_map_y
 
-    def get_contact_map(self, xy_tuple):
+    def calculate_contact_map(self, xy_tuple):
         """Calculates the presence of contacts between the agent and other objects
 
         Arguments:

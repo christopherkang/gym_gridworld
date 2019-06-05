@@ -1,8 +1,11 @@
-import numpy as np
-from .gridworld import Gridworld
-import gym
-import cv2
 import sys
+
+import cv2
+import gym
+import numpy as np
+
+from .gridworld import Gridworld
+
 for p in sys.path:
     print(p)
 
@@ -39,7 +42,7 @@ class KangGrid(gym.Env):
         ySize = xyDimension[1]
 
         coordinates = np.random.choice(
-            xSize * ySize - 1, number_of_objects, replace=False)
+            xSize * ySize - 1, number_of_objects, replace=False) + 1
 
         output = []
 
@@ -88,11 +91,11 @@ class KangGrid(gym.Env):
 
         reward = self.env.move_agent(action)
 
-        if reward == 1 or self.env.get_epoch() > 50:
+        if reward == 1 or self.env._get_epoch() > 50:
             done = True
 
         state = [self.env.calculate_grid_map(
-            (0, 0)), self.env.get_contact_map((0, 0))]
+            (0, 0)), self.env.calculate_contact_map((0, 0))]
 
         # often refers to multiple dimensions, but here it simply refers to
         # the proximity between objects and the contacts
@@ -100,7 +103,9 @@ class KangGrid(gym.Env):
         print(f"Agent took action {self._ACTION_BANK[action]}")
 
         print(
-            f"Pos: {self.env.get_agent_coords()} | Reward : {reward} | Epoch : {self.env.get_epoch()}")
+            f"Pos: {self.env._get_agent_coords()} | Reward : {reward} | Epoch : {self.env._get_epoch()}")
+
+        print()
 
         return state, reward, done, {}
 
@@ -116,10 +121,9 @@ class KangGrid(gym.Env):
             mode {str} -- #FLAG ? unknown (default: {'human'})
             close {bool} -- #FLAG ? unknown (default: {False})
         """
-        # cv2.imshow('image', cv2.resize(self.env.getRepresentation(
-        #     showAgent=True, scaleEnvironment=True), (200, 200),
-        #     interpolation=cv2.INTER_NEAREST))
-        cv2.imshow('image', cv2.resize(self.env.representation, (200, 200),
+        cv2.imshow('image', cv2.resize(self.env.get_representation(showAgent=True), (200, 200),
                                        interpolation=cv2.INTER_NEAREST))
-        cv2.waitKey(1)
+        cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+        return ""
