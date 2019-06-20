@@ -44,6 +44,7 @@ class Gridworld:
         self.representation = np.zeros(worldSize)
         self.blocks = np.zeros(worldSize)
         self.collision_penalty = parameters[1]
+        self.perm_contact = None
 
         # form: [reward, passable (bool), xCoord, yCoord]
         self.item_list = np.array(parameters[0])
@@ -53,8 +54,7 @@ class Gridworld:
         # reversed because its rows x columns
         self.does_agent_exist = False
         for [value, canEnter, x_coord, y_coord] in parameters[0]:
-            self.representation[2, 2] = 0.1
-            self.representation[int(y_coord), int(x_coord)] = value
+            self.representation[y_coord, x_coord] = value
             if (not canEnter):
                 self.blocks[y_coord, x_coord] = 1
 
@@ -190,7 +190,7 @@ class Gridworld:
                 return np.array([0, 0, 0])
 
         rgb_img = np.zeros(
-            (self.representation.shape[0], self.representation.shape[1], 3))
+            (self.y_size, self.x_size, 3))
 
         for width in range(self.x_size):
             for height in range(self.y_size):
@@ -296,7 +296,7 @@ class Gridworld:
 
         return prox_map
 
-    def calculate_grid_map(self, xy_tuple):
+    def calculate_grid_map(self, xy_tuple=(0,0)):
         """Creates two matrices that show the distances between the agent and
         the objects in the x / y dimensions
 
@@ -312,6 +312,12 @@ class Gridworld:
             (len(self.item_list) + 1, len(self.item_list) + 1))
         out_map_y = np.zeros(
             (len(self.item_list) + 1, len(self.item_list) + 1))
+        
+        if self.perm_contacts is None:
+            self.perm_contacts = np.zeros(
+                len(self.item_list) + 1, len(self.item_list) + 1)
+
+        contacts = self.perm_contacts
 
         new_agent_x = np.clip(self.x_agent + xy_tuple[0], 0, self.x_size - 1)
         new_agent_y = np.clip(self.y_agent + xy_tuple[1], 0, self.y_size - 1)
@@ -328,6 +334,8 @@ class Gridworld:
         for target in range(len(self.item_list)):
             out_map_x[target + 1][0] = new_agent_x - self.item_list[target][2]
             out_map_y[target + 1][0] = new_agent_y - self.item_list[target][3]
+            if abs(out_map_x[target + 1][0]) + abs(out_map_y[target + 1][0]) <= 1:
+                contacts[target + 1][0] = 1
 
         # now, we will compute distances from objects to each other
         for source in range(1, len((self.item_list)) + 1):
@@ -336,13 +344,18 @@ class Gridworld:
                     self.item_list[target - 1][2:]
                 out_map_x[target][source] = distance[0]
                 out_map_x[target][source] = distance[1]
+                if abs(distance[0]) + abs(distance[1]) == 1:
+                    contacts[target][source] = 1
+                elif abs(distance[0]) + abs(distance[1]) == 0:
+                    contacts[target][source] = 1
+                    self.perm_contacts[target][source] = 1 
 
-        # print(out_map_x, out_map_y)
+        return np.dstack((out_map_x, out_map_y, contacts))
 
-        return out_map_x, out_map_y
-
-    def calculate_contact_map(self, xy_tuple):
-        """Calculates the presence of contacts between the agent and other objects
+    def calculate_contact_map(self, xy_tuple=(0, 0)):
+        """
+        DO NOT USE - DEPRECATED
+        Calculates the presence of contacts between the agent and other objects
 
         Arguments:
             xy_tuple {tuple of int} -- (deltaX, deltaY)
